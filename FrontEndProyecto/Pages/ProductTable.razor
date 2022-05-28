@@ -1,0 +1,171 @@
+﻿@page "/productTable"
+
+@inject HttpClient _client;
+
+@using System.Net.Http.Json
+@using FrontEndProyecto.Data
+
+<MudExpansionPanels>
+    <MudExpansionPanel Text="Do you want to add a new product? (Click Here)" MaxHeight="400">
+        <MudPaper Height="370px" Width="100%">
+            <MudContainer MaxWidth="MaxWidth.Small">
+                <MudPaper Height="370px" Width="100%" Square="true" >
+                    <MudText Align="Align.Center"><b>Do you want to add a new product?</b></MudText>
+                    <MudText Align="Align.Center">Fill in the following data:</MudText>
+                    <MudTextField @bind-Value="name" Label="name"  Variant="Variant.Outlined"></MudTextField>
+                    <MudTextField @bind-Value="purchasePrice" Label="purchasePrice" Variant="Variant.Outlined"></MudTextField>
+                    <MudTextField @bind-Value="salePrice" Label="salePrice" Variant="Variant.Outlined"></MudTextField>
+                    <MudTextField @bind-Value="distributionChannel" Label="distributionChannel" Variant="Variant.Outlined"></MudTextField>
+                    <br />
+                    <MudButton OnClick="(args) => AddNewItem()" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" Color="Color.Info" Size="Size.Medium">Add Product</MudButton>
+                </MudPaper>
+            </MudContainer>
+        </MudPaper>
+    </MudExpansionPanel>
+</MudExpansionPanels>
+
+
+<br />
+<br />
+
+<MudDataGrid T="Product" Items="@Products" ReadOnly="@_readOnly" EditMode="@(_isCellEditMode ? DataGridEditMode.Cell : DataGridEditMode.Form)"
+    StartedEditingItem="@StartedEditingItem" CancelledEditingItem="@CancelledEditingItem" CommittedItemChanges="@CommittedItemChanges"
+    Bordered="true" Dense="true" EditTrigger="@(_editTriggerRowClick ? DataGridEditTrigger.OnRowClick : DataGridEditTrigger.Manual)">
+    <Columns>
+        <Column T="Product" Field="name" Title="Name"/>
+        <Column T="Product" Field="purchasePrice" Title="Purchase Price"/>
+        <Column T="Product" Field="salePrice" Title="Sale Price"/>
+        <Column T="Product" Field="distributionChannel" Title="Distribution Channel"/>
+        
+        <Column T="Product" Hidden="@(_isCellEditMode || _readOnly || _editTriggerRowClick)" CellClass="d-flex justify-end">
+            <CellTemplate>
+                <MudIconButton Size="@Size.Small" Icon="@Icons.Outlined.Edit" OnClick="@context.Actions.StartEditingItem" />
+                <MudIconButton Size="@Size.Small" Icon="@Icons.Outlined.Delete" OnClick="(args)=> DeleteItem(context.Item)" />
+            </CellTemplate>
+        </Column>
+    </Columns>
+</MudDataGrid>
+
+
+
+
+@code {
+
+    [Inject] private ISnackbar SnackbarService {get; set;}
+
+    private async void OnAlertAdd()
+    {
+        SnackbarService.Add("Product "+name+" Added", Severity.Info);   
+    }
+
+
+    private async void OnAlertModify()
+    {
+        SnackbarService.Add("Product Modified", Severity.Success);   
+    }
+
+    private async void OnAlertDelete()
+    {
+        SnackbarService.Add("Product Deleted", Severity.Error);   
+    }
+
+    // Parte 1
+
+    public string name { get; set; }
+    public int purchasePrice { get; set; }
+    public int salePrice { get; set; }
+    public string distributionChannel { get; set; }
+
+    //Fin parte 1
+
+    // Codigo para las tablas 
+
+    private IEnumerable<Product> Products = new List<Product>();
+    private bool _readOnly;
+    private bool _isCellEditMode;
+    private List<string> _events = new();
+    private bool _editTriggerRowClick;
+
+
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        var elemento = new List<Product>();
+
+        _client.BaseAddress = new Uri("https://localhost:7194/");
+
+        var requestMessage = new HttpRequestMessage(HttpMethod.Get , "Product/ConsultProduct");
+        var respuesta = await _client.SendAsync(requestMessage);
+
+        if (respuesta.StatusCode == System.Net.HttpStatusCode.OK)
+        {
+            var responseBody = await respuesta.Content.ReadAsStringAsync();
+            var listasProduct = System.Text.Json.JsonSerializer.Deserialize<List<Product>>(responseBody);
+            Products = listasProduct;
+        }
+
+    }
+
+
+    protected async Task  AddNewItem()
+    {
+        var element = new Product()
+            {
+                name = name,
+                purchasePrice = purchasePrice,
+                salePrice = salePrice,
+                distributionChannel = distributionChannel
+            };
+        ((List<Product>)Products).Add(element);
+        StateHasChanged();
+
+        var requestMessage = new HttpRequestMessage(HttpMethod.Post ,"https://localhost:7194/Product/AddProduct?Name="+name+"&PurchasePrice="+purchasePrice+"&SalePrice="+salePrice+"&DistributionChannel="+distributionChannel);
+        var response = await _client.SendAsync(requestMessage);
+
+        if (response.StatusCode == System.Net.HttpStatusCode.OK)
+        {
+            this.OnAlertAdd();
+        }
+
+    }
+
+    // events
+    void StartedEditingItem(Product item)
+    {
+        _events.Insert(0, $"Event = StartedEditingItem, Data = {System.Text.Json.JsonSerializer.Serialize(item)}");
+    }
+
+    void CancelledEditingItem(Product item)
+    {
+        _events.Insert(0, $"Event = CancelledEditingItem, Data = {System.Text.Json.JsonSerializer.Serialize(item)}");
+    }
+    // Este servira para guardar o actualizar registros
+    protected async Task CommittedItemChanges(Product item)
+    {
+        _events.Insert(0, $"Event = CommittedItemChanges, Data = {System.Text.Json.JsonSerializer.Serialize(item)}");
+
+
+        var requestMessage = new HttpRequestMessage(HttpMethod.Put ,"https://localhost:7194/Product/UpdateProduct?IdProduct="+item.idProduct+"&Name="+item.name+"&Lastname="+item.name+"&PurchasePrice="+item.purchasePrice+"&SalePrice="+item.salePrice+"&DistributionChannel="+item.distributionChannel);
+        var response = await _client.SendAsync(requestMessage);
+
+        this.OnAlertModify();
+
+    }
+
+    protected async Task DeleteItem(Product item)
+    {
+        ((List<Product>)Products).Remove(item);
+        StateHasChanged();
+
+        var requestMessage = new HttpRequestMessage(HttpMethod.Delete ,"https://localhost:7194/Product/DeleteProduct?IdProduct="+item.idProduct);
+        var response = await _client.SendAsync(requestMessage);
+
+        this.OnAlertDelete();
+
+    }
+
+
+    // Fin Codigo para tablas 
+
+}

@@ -1,0 +1,166 @@
+﻿@page "/employeeTable"
+
+@inject HttpClient _client;
+
+@using FrontEndProyecto.Data
+<MudExpansionPanels>
+    <MudExpansionPanel Text="Do you want to add a new employee? (Click Here)" MaxHeight="450">
+        <MudPaper Height="430px" Width="100%">
+            <MudContainer MaxWidth="MaxWidth.Small">
+                <MudPaper Height="430px" Width="100%" Square="true" >
+                    <MudText Align="Align.Center"><b>Do you want to add a new user?</b></MudText>
+                    <MudText Align="Align.Center">Fill in the following data:</MudText>
+                    <MudTextField @bind-Value="name" Label="name"  Variant="Variant.Outlined"></MudTextField>
+                    <MudTextField @bind-Value="lastname" Label="lastname" Variant="Variant.Outlined"></MudTextField>
+                    <MudTextField @bind-Value="profession" Label="profession" Variant="Variant.Outlined"></MudTextField>
+                    <MudTextField @bind-Value="position" Label="position" Variant="Variant.Outlined"></MudTextField>
+                    <MudTextField @bind-Value="salary" Label="salary" Variant="Variant.Outlined"></MudTextField>
+                    <br />
+                    <MudButton Variant="Variant.Filled" OnClick="AddNewItem" StartIcon="@Icons.Material.Filled.Save" Color="Color.Info"  Size="Size.Medium">Save Employee</MudButton>
+                </MudPaper>
+            </MudContainer>
+        </MudPaper>
+    </MudExpansionPanel>
+</MudExpansionPanels>
+<br />
+<br />
+
+<MudDataGrid T="Employee" Items="@Employees" ReadOnly="@_readOnly" EditMode="@(_isCellEditMode ? DataGridEditMode.Cell : DataGridEditMode.Form)"
+    StartedEditingItem="@StartedEditingItem" CancelledEditingItem="@CancelledEditingItem" CommittedItemChanges="@CommittedItemChanges"
+    Bordered="true" Dense="true" EditTrigger="@(_editTriggerRowClick ? DataGridEditTrigger.OnRowClick : DataGridEditTrigger.Manual)">
+    <Columns>
+        <Column T="Employee" Field="name" Title="Name"/>
+        <Column T="Employee" Field="lastname" Title="Lastname"/>
+        <Column T="Employee" Field="profession" Title="Profession"/>
+        <Column T="Employee" Field="position" Title="Position"/>
+        <Column T="Employee" Field="salary" Title="Salary"/>
+        <Column T="Employee" Hidden="@(_isCellEditMode || _readOnly || _editTriggerRowClick)" CellClass="d-flex justify-end">
+            <CellTemplate>
+                <MudIconButton Size="@Size.Small" Icon="@Icons.Outlined.Edit" OnClick="@context.Actions.StartEditingItem" />
+                <MudIconButton Size="@Size.Small" Icon="@Icons.Outlined.Delete" OnClick="(args)=> DeleteItem(context.Item)" />
+            </CellTemplate>
+        </Column>
+    </Columns>
+</MudDataGrid>
+
+
+
+@code {
+
+    [Inject] private ISnackbar SnackbarService {get; set;}
+
+    private async void OnAlertAdd()
+    {
+        SnackbarService.Add("Employee "+name+" Added", Severity.Info);   
+    }
+
+    private async void OnAlertModify()
+    {
+        SnackbarService.Add("Employee Modified", Severity.Success);   
+    }
+
+    private async void OnAlertDelete()
+    {
+        SnackbarService.Add("Employee Deleted", Severity.Error);   
+    }
+
+    // Parte 1
+
+    public string name { get; set; }
+    public string lastname { get; set; }
+    public string profession { get; set; }
+    public string position { get; set; }
+    public int salary { get; set; }
+
+    //Fin parte 1
+
+    // Codigo para las tablas 
+
+    private IEnumerable<Employee> Employees = new List<Employee>();
+    private bool _readOnly;
+    private bool _isCellEditMode;
+    private List<string> _events = new();
+    private bool _editTriggerRowClick;
+
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        var element = new List<Employee>();
+
+        _client.BaseAddress = new Uri("https://localhost:7194/");
+
+        var requestMessage = new HttpRequestMessage(HttpMethod.Get , "Employee/ConsultEmployees");
+        var response = await _client.SendAsync(requestMessage);
+
+        if (response.StatusCode == System.Net.HttpStatusCode.OK)
+        {
+            var responseBody = await response.Content.ReadAsStringAsync();
+            var employeesList = System.Text.Json.JsonSerializer.Deserialize<List<Employee>>(responseBody);
+            Employees = employeesList;
+        }
+
+    }
+
+    protected async Task  AddNewItem()
+    {
+        var element = new Employee()
+            {
+                name = name,
+                lastname = lastname,
+                profession = profession,
+                position = position,
+                salary = salary
+            };
+        ((List<Employee>)Employees).Add(element);
+        StateHasChanged();
+
+        var requestMessage = new HttpRequestMessage(HttpMethod.Post ,"https://localhost:7194/Employee/AddEmployee?Name="+name+"&Lastname="+lastname+"&Profession="+profession+"&Position="+position+"&Salary="+salary);
+        var response = await _client.SendAsync(requestMessage);
+
+        if (response.StatusCode == System.Net.HttpStatusCode.OK)
+        {
+            this.OnAlertAdd();
+        }
+
+    }
+
+    // events
+    void StartedEditingItem(Employee item)
+    {
+        _events.Insert(0, $"Event = StartedEditingItem, Data = {System.Text.Json.JsonSerializer.Serialize(item)}");
+    }
+
+    void CancelledEditingItem(Employee item)
+    {
+        _events.Insert(0, $"Event = CancelledEditingItem, Data = {System.Text.Json.JsonSerializer.Serialize(item)}");
+    }
+    // Este servira para guardar o actualizar registros
+    protected async Task CommittedItemChanges(Employee item)
+    {
+        _events.Insert(0, $"Event = CommittedItemChanges, Data = {System.Text.Json.JsonSerializer.Serialize(item)}");
+
+
+        var requestMessage = new HttpRequestMessage(HttpMethod.Put ,"https://localhost:7194/Employee/UpdateEmployee?IdEmployee="+item.idEmployee+"&Name="+item.name+"&Lastname="+item.lastname+"&Profession="+item.profession+"&Position="+item.position+"&Salary="+item.salary);
+        var response = await _client.SendAsync(requestMessage);
+
+        this.OnAlertModify();
+
+    }
+
+    protected async Task DeleteItem(Employee item)
+    {
+        ((List<Employee>)Employees).Remove(item);
+        StateHasChanged();
+
+        var requestMessage = new HttpRequestMessage(HttpMethod.Delete ,"https://localhost:7194/Employee/DeleteEmployee?IdEmployee="+item.idEmployee);
+        var response = await _client.SendAsync(requestMessage);
+
+        this.OnAlertDelete();
+
+    }
+
+
+    // Fin Codigo para tablas 
+
+}

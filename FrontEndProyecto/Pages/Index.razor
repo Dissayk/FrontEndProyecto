@@ -1,0 +1,61 @@
+﻿@page "/"
+
+<PageTitle>Index</PageTitle>
+
+<MudPaper Elevation="4" Class="py-8 px-10" Style="@($"color:{Colors.Blue.Darken4};")">
+    <MudText Typo="Typo.h3" Align="Align.Center" GutterBottom="true"><b>Programación de Nuevas Tecnologías</b></MudText>
+</MudPaper>
+
+<div class="mud-theme-info py-4 px-6 mx-4 rounded-bs-xl" Style="@($"color:{Colors.Blue.Darken4}")">
+    <MudText Align="Align.Right"><b>Universidad de La Sabana</b></MudText>
+</div>
+
+<br />
+<MudText Align="Align.Center"><MudRating  SelectedValue="5" /></MudText>
+<br />
+<br />
+
+<MudGrid Spacing="spacing" Justify="Justify.Center">
+    <MudItem>
+        <MudPaper Height="70px" Width="70px">
+            <MudProgressCircular  Color="Color.Primary" Style="height:70px;width:70px;" Indeterminate="true"/>
+        </MudPaper>
+        
+
+    </MudItem>
+    <MudItem>
+        <MudPaper Height="70px" Width="70px">
+            <MudProgressCircular  Color="Color.Secondary" Style="height:70px;width:70px;" Indeterminate="true"/>
+        </MudPaper>
+    </MudItem>
+    <MudItem>
+        <MudPaper Height="70px" Width="70px">
+            <MudProgressCircular  Color="Color.Tertiary" Style="height:70px;width:70px;" Indeterminate="true"/>
+        </MudPaper> 
+    </MudItem>
+</MudGrid>
+
+<br />
+<br />
+<br />
+<br />
+
+<MudText Typo="Typo.h4" Align=Align.Center><b>Jorge Alberto Valbuena Rodríguez</b></MudText>
+
+<br />
+<br />
+<br />
+
+<MudCard>
+    <MudCardContent>
+        <MudText><b>Final Project</b></MudText>
+        <MudText Typo="Typo.body2">Do you want to know the blog? </MudText>
+    </MudCardContent>
+    <MudCardActions>
+        <MudButton Href="/blog" Variant="Variant.Text" Color="Color.Primary">Learn More</MudButton>
+    </MudCardActions>
+</MudCard>
+
+@code {
+    public int spacing { get; set; } = 3;
+}
